@@ -71,7 +71,7 @@ void DoSomeWork()
 int main(int argc, char* argv[])
 {
 
-  if (!cachesim.Init())
+  if (!cachesim.Init(CPU_Jaguar))
     return 1;
 
   printf("Start\n");
@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
   // If a thread is not mapped, it will not be simulated.
   cachesim.SetThreadCoreMapping(cachesim.GetCurrentThreadId(), 0);
 
-  cachesim.Start(CPU_AppleA11);
+  cachesim.Start();
 
   printf("Hello, world (with cache simulation)!\n");
 

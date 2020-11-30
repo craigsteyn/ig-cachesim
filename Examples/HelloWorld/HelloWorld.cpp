@@ -33,14 +33,14 @@ int main(int argc, char* argv[])
 {
   CacheSim::DynamicLoader cachesim;
 
-  if (!cachesim.Init())
+  if (!cachesim.Init(CPU_Jaguar))
     return 1;
 
   // This needs to happen to map win32 thread ids to physical cores for cache simulation.
   // If a thread is not mapped, it will not be simulated.
   cachesim.SetThreadCoreMapping(cachesim.GetCurrentThreadId(), 0);
 
-  cachesim.Start(CPU_AppleA9);
+  cachesim.Start();
 
   printf("Hello, world (with cache simulation)!\n");
 

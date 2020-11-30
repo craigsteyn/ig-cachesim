@@ -79,41 +79,50 @@ namespace CacheSim
   static uint32_t g_TraceEnabled = 0;
 
   static volatile int32_t g_Lock;
- // static CacheSim::JaguarCacheSim g_Jaguar_Cache;
+  static CacheSim::JaguarCacheSim g_Jaguar_Cache;
   static CacheSim::AppleChipSim<AppleA9Module> g_AppleA9_Cache;
   static CacheSim::AppleChipSim<AppleA11Module> g_AppleA11_Cache;
   static CacheSim::Snapdragon845ChipSim<Snapdragon845Module> g_Snapdragon845_Cache;
 
   using GetNextCoreFN = int(*)();
+  using InitCacheFN = void(*)();
   using AccessCacheFN = AccessResult(*)(int core_index, uintptr_t addr, size_t size, AccessMode mode);
 
-  static GetNextCoreFN getNextCoreFn = nullptr;
-  static AccessCacheFN accessCacheFn = nullptr;
+  static GetNextCoreFN g_GetNextCoreFn = nullptr;
+  static InitCacheFN g_InitCacheFn = nullptr;
+  static AccessCacheFN g_AccessCacheFn = nullptr;
 
-  void InitCache(int cpu_type)
+  void InitCacheFunctionPointers(int cpu_type)
   {
     switch(cpu_type)
     {
-    /*case CPU_Jaguar:
+    case CPU_Jaguar:
       {
-        getNextCoreFn = +[]() 
+        g_GetNextCoreFn = +[]() 
         {
           return g_Jaguar_Cache.GetNextCore();
         };
-        accessCacheFn = +[](int core_index, uintptr_t addr, size_t size, AccessMode mode) 
+        g_InitCacheFn = +[]() 
+        {
+          g_Jaguar_Cache.Init();
+        };
+        g_AccessCacheFn = +[](int core_index, uintptr_t addr, size_t size, AccessMode mode) 
         {
           return g_Jaguar_Cache.Access(core_index, addr, size, mode);
         };
       }
       break;
-	*/
     case CPU_AppleA9:
       {
-        getNextCoreFn = +[]() 
+        g_GetNextCoreFn = +[]() 
         {
           return g_AppleA9_Cache.GetNextCore();
         };
-        accessCacheFn = +[](int core_index, uintptr_t addr, size_t size, AccessMode mode) 
+        g_InitCacheFn = +[]() 
+        {
+          g_AppleA9_Cache.Init();
+        };
+        g_AccessCacheFn = +[](int core_index, uintptr_t addr, size_t size, AccessMode mode) 
         {
           return g_AppleA9_Cache.Access(core_index, addr, size, mode);
         };
@@ -121,11 +130,15 @@ namespace CacheSim
       break;
     case CPU_AppleA11:
       {
-        getNextCoreFn = +[]() 
+        g_GetNextCoreFn = +[]() 
         {
           return g_AppleA11_Cache.GetNextCore();
         };
-        accessCacheFn = +[](int core_index, uintptr_t addr, size_t size, AccessMode mode) 
+        g_InitCacheFn = +[]() 
+        {
+          g_AppleA11_Cache.Init();
+        };
+        g_AccessCacheFn = +[](int core_index, uintptr_t addr, size_t size, AccessMode mode) 
         {
           return g_AppleA11_Cache.Access(core_index, addr, size, mode);
         };
@@ -133,11 +146,15 @@ namespace CacheSim
       break;
     case CPU_Snapdragon845:
       {
-        getNextCoreFn = +[]() 
+        g_GetNextCoreFn = +[]() 
         {
           return g_Snapdragon845_Cache.GetNextCore();
         };
-        accessCacheFn = +[](int core_index, uintptr_t addr, size_t size, AccessMode mode) 
+        g_InitCacheFn = +[]() 
+        {
+          g_Snapdragon845_Cache.Init();
+        };
+        g_AccessCacheFn = +[](int core_index, uintptr_t addr, size_t size, AccessMode mode) 
         {
           return g_Snapdragon845_Cache.Access(core_index, addr, size, mode);
         };
@@ -605,13 +622,13 @@ static void GenerateMemoryAccesses(int core_index, const ud_t* ud, uint64_t rip,
 
   // Generate I-cache traffic.
   {
-    CacheSim::AccessResult r = accessCacheFn(core_index, rip, ilen, CacheSim::kCodeRead);
+    CacheSim::AccessResult r = g_AccessCacheFn(core_index, rip, ilen, CacheSim::kCodeRead);
     stats->m_Stats[r] += 1;
 
     // Generate prefetch traffic. Pretend prefetches are immediate reads and record how effective they were.
     if (prefetch_op.ea)
     {
-      switch (accessCacheFn(core_index, prefetch_op.ea, prefetch_op.sz, CacheSim::kRead))
+      switch (g_AccessCacheFn(core_index, prefetch_op.ea, prefetch_op.sz, CacheSim::kRead))
       {
       case CacheSim::kD1Hit:
         stats->m_Stats[CacheSim::kPrefetchHitD1] += 1;
@@ -626,13 +643,13 @@ static void GenerateMemoryAccesses(int core_index, const ud_t* ud, uint64_t rip,
   // Generate D-cache traffic.
   for (int i = 0; i < read_count; ++i)
   {
-    CacheSim::AccessResult r = accessCacheFn(core_index, reads[i].ea, reads[i].sz, CacheSim::kRead);
+    CacheSim::AccessResult r = g_AccessCacheFn(core_index, reads[i].ea, reads[i].sz, CacheSim::kRead);
     stats->m_Stats[r] += 1;
   }
 
   for (int i = 0; i < write_count; ++i)
   {
-    CacheSim::AccessResult r = accessCacheFn(core_index, writes[i].ea, writes[i].sz, CacheSim::kWrite);
+    CacheSim::AccessResult r = g_AccessCacheFn(core_index, writes[i].ea, writes[i].sz, CacheSim::kWrite);
     stats->m_Stats[r] += 1;
   }
 }
@@ -690,7 +707,7 @@ void CacheSimSetThreadCoreMapping(uint64_t thread_id, int logical_core_id)
   }
 
   if(logical_core_id == -2) {
-	  logical_core_id = getNextCoreFn();
+	  logical_core_id = g_GetNextCoreFn();
   }
 
   s_CoreMappings[count].m_ThreadId = thread_id;

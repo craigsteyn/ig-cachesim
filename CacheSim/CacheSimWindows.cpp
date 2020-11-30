@@ -215,7 +215,7 @@ static LONG WINAPI StepFilter(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT Contex
 }
 
 __declspec(dllexport)
-void CacheSimInit()
+void CacheSimInit(int cpu_type)
 {
   using namespace CacheSim;
   // Note that this heap *has* to be non-serialized, because we can't have it trying to take any locks.
@@ -223,6 +223,7 @@ void CacheSimInit()
   g_Stats.Init();
   g_Stacks.Init();
   memset(&g_StackData, 0, sizeof g_StackData);
+  InitCacheFunctionPointers(cpu_type);
 
   HMODULE h = LoadLibraryA("kernelbase.dll");
   g_RaiseExceptionAddress = (uintptr_t) GetProcAddress(h, "RaiseException");
@@ -283,7 +284,7 @@ RtlpCallVectoredHandlers. This symbol is not exported, so it's not possible to g
 with a call to GetProcAddress(). If you have a version of NTDLL not in this list and need to
 use CacheSim, update the table in this function per the comment below.
 */
-bool CacheSimStartCapture(int cpu_type)
+bool CacheSimStartCapture()
 {
   using namespace CacheSim;
   if (g_TraceEnabled)
@@ -299,7 +300,7 @@ bool CacheSimStartCapture(int cpu_type)
   }
 
   // Reset.
-  InitCache(cpu_type);
+  g_InitCacheFn();
 
   HANDLE thread_handles[ARRAY_SIZE(s_CoreMappings)];
   int thread_count = 0;

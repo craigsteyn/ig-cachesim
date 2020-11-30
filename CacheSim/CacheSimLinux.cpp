@@ -183,12 +183,13 @@ static void HandleTrap(int signo, siginfo_t* siginfo, void* ucontext_param)
 
 static char executable_filepath[512];
 
-void CacheSimInit()
+void CacheSimInit(int cpu_type)
 {
   using namespace CacheSim;
   g_Stats.Init();
   g_Stacks.Init();
   memset(&g_StackData, 0, sizeof g_StackData);
+  InitCacheFunctionPointers(cpu_type);
 
   int len = readlink("/proc/self/exe", executable_filepath, ARRAY_SIZE(executable_filepath));
 
@@ -233,7 +234,7 @@ static void ContinueProcess(const pid_t pid)
   return;
 }
 
-bool CacheSimStartCapture(int cpu_type)
+bool CacheSimStartCapture()
 {
   using namespace CacheSim;
   if (g_TraceEnabled)
@@ -242,7 +243,7 @@ bool CacheSimStartCapture(int cpu_type)
   }
 
   // Reset.
-  InitCache(cpu_type);
+  g_InitCacheFn();
 
   pid_t child = fork();
   if (child != 0)

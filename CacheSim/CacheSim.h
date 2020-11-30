@@ -77,8 +77,15 @@ As such there's no static binding to these functions, they're looked up with Get
 
 extern "C"
 {
+  enum CPU_Type 
+  {
+    CPU_Jaguar,
+    CPU_AppleA9,
+    CPU_AppleA11,
+    CPU_Snapdragon845
+  };
   /// Initializes the API. Only call once.
-  IG_CACHESIM_API void CacheSimInit();
+  IG_CACHESIM_API void CacheSimInit(int cpu_type);
 
   /// Returns a thread ID suitable for use with CachesimSetThreadCoreMapping
   IG_CACHESIM_API uint64_t CacheSimGetCurrentThreadId();
@@ -86,16 +93,11 @@ extern "C"
   /// Set what Jaguar core (0-7) this Win32 thread ID will map to.
   /// Threads without a jaguar core id will not be recorded, so you'll need to set up atleast one.
   /// A core id of -1 will disable recording the thread (e.g., upon thread completion)
+  /// A core id of -1 will simply increment the core id mod the core count. (not perfectly accurate traces will result from this)
   IG_CACHESIM_API void CacheSimSetThreadCoreMapping(uint64_t thread_id, int logical_core_id);
 
-  enum CPU_Type {
-    //CPU_Jaguar, // Doesnt seems to work at the moment
-    CPU_AppleA9,
-    CPU_AppleA11,
-    CPU_Snapdragon845
-  };
   /// Start recording a capture, buffering it to memory.
-  IG_CACHESIM_API bool CacheSimStartCapture(int cpu_type);
+  IG_CACHESIM_API bool CacheSimStartCapture();
 
   /// Stop recording and optionally save the capture to disk.
   IG_CACHESIM_API void CacheSimEndCapture(bool save);
@@ -129,7 +131,7 @@ namespace CacheSim
     {}
 
   public:
-    bool Init()
+    bool Init(int cpu_type)
     {
       if (!m_Module)
       {
@@ -161,16 +163,16 @@ namespace CacheSim
           return false;
         }
 
-        m_InitFn();
+        m_InitFn(cpu_type);
       }
 
       return true;
     }
 
 
-    inline bool Start(int cpu_type)
+    inline bool Start()
     {
-      return m_StartCaptureFn(cpu_type);
+      return m_StartCaptureFn();
     }
 
     inline void End()
