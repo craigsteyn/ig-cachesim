@@ -117,7 +117,7 @@ void CacheSim::TraceTab::openReverseViewForSymbol(QString symbol)
 
 void CacheSim::TraceTab::openAnnotationForSymbol(QString symbol)
 {
-  TraceData::FileInfo fileInfo = m_Data->findFileData(symbol);
+  TraceData::FileInfo fileInfo = m_Data->findFileData(symbol, true);
   if (!fileInfo.m_FileName.isEmpty() && QFileInfo::exists(fileInfo.m_FileName))
   {
     QScrollArea* scrollArea = new QScrollArea(this);

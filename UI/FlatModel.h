@@ -63,11 +63,14 @@ namespace CacheSim
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
+	void toggleInlineData();
+
   private:
     Q_SLOT void dataStoreChanged();
 
   private:
     const TraceData* m_Data = nullptr;
+	bool useInlineName = false;
 
     struct Node
     {

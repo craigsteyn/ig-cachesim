@@ -64,8 +64,8 @@ namespace CacheSim
     const SerializedHeader* header() const { return reinterpret_cast<const SerializedHeader*>(m_Data); }
 
   public:
-    QString symbolNameForAddress(uintptr_t rip) const;
-    QString fileNameForAddress(uintptr_t rip) const;
+    QString symbolNameForAddress(uintptr_t rip, bool useInline) const;
+    QString fileNameForAddress(uintptr_t rip, bool useInline) const;
     QString internedSymbolString(uint32_t offset) const;
 
     struct LineData
@@ -82,7 +82,7 @@ namespace CacheSim
       QVector<LineData> m_Samples;
     };
 
-    FileInfo findFileData(QString symbol) const;
+    FileInfo findFileData(QString symbol, bool useInline) const;
 
   private:
     Q_SLOT void symbolsResolved();

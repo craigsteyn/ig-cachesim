@@ -152,7 +152,7 @@ void CacheSim::FlatModel::dataStoreChanged()
     if (const SerializedSymbol* symbol = header->FindSymbol(node.m_Rip))
     {
       int row;
-      QString symbolName = m_Data->symbolNameForAddress(node.m_Rip);
+      QString symbolName = m_Data->symbolNameForAddress(node.m_Rip, useInlineName);
       auto it = symbolNameToRow.find(symbolName);
       if (it != symbolNameToRow.end())
       {
@@ -177,6 +177,11 @@ void CacheSim::FlatModel::dataStoreChanged()
 
   qDebug() << "collapsed" << count << "nodes to" << m_Rows.count() << "flat entries based on symbol";
   endResetModel();
+}
+
+void CacheSim::FlatModel::toggleInlineData() {
+	useInlineName = !useInlineName;
+	dataStoreChanged();
 }
 
 CacheSim::FlatModel::Node::Node()

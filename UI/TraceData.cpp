@@ -95,7 +95,7 @@ void CacheSim::TraceData::beginResolveSymbols()
   m_Watcher->setFuture(QtConcurrent::run(this, &TraceData::symbolResolveTask));
 }
 
-QString CacheSim::TraceData::symbolNameForAddress(uintptr_t rip) const
+QString CacheSim::TraceData::symbolNameForAddress(uintptr_t rip, bool useInline) const
 {
   const SerializedSymbol* symbol = header()->FindSymbol(rip);
 
@@ -104,10 +104,10 @@ QString CacheSim::TraceData::symbolNameForAddress(uintptr_t rip) const
     return QString::null;
   }
 
-  return internedSymbolString(symbol->m_SymbolName);
+  return internedSymbolString(useInline ? symbol->m_InlinedSymbol.m_Name : symbol->m_Symbol.m_Name);
 }
 
-QString CacheSim::TraceData::fileNameForAddress(uintptr_t rip) const
+QString CacheSim::TraceData::fileNameForAddress(uintptr_t rip, bool useInline) const
 {
   const SerializedSymbol* symbol = header()->FindSymbol(rip);
 
@@ -116,7 +116,7 @@ QString CacheSim::TraceData::fileNameForAddress(uintptr_t rip) const
     return QString::null;
   }
 
-  return internedSymbolString(symbol->m_FileName);
+  return internedSymbolString(useInline ? symbol->m_InlinedSymbol.m_FileName : symbol->m_Symbol.m_FileName);
 }
 
 QString CacheSim::TraceData::internedSymbolString(uint32_t offset) const
@@ -133,9 +133,18 @@ QString CacheSim::TraceData::internedSymbolString(uint32_t offset) const
   return result;
 }
 
-CacheSim::TraceData::FileInfo CacheSim::TraceData::findFileData(QString symbol) const
+CacheSim::TraceData::FileInfo CacheSim::TraceData::findFileData(QString symbol, bool useInline) const
 {
   uint32_t stringIndex = m_StringToSymbolNameIndex.value(symbol);
+
+  auto getCorrectSymbol = [useInline](const SerializedSymbol* sym) -> const SerializedSymbol::SymbolInfo * {
+	  if (useInline) {
+		  return &sym->m_InlinedSymbol;
+	  }
+	  else {
+		  return &sym->m_Symbol;
+	  }
+  };
 
   if (stringIndex == 0)
   {
@@ -159,14 +168,16 @@ CacheSim::TraceData::FileInfo CacheSim::TraceData::findFileData(QString symbol) 
 
     if (const SerializedSymbol* sym = hdr->FindSymbol(node.m_Rip))
     {
-      if (internedSymbolString(sym->m_SymbolName) == symbol)
+	  const SerializedSymbol::SymbolInfo *info = getCorrectSymbol(sym);
+
+      if (internedSymbolString(info->m_Name) == symbol)
       {
         if (fileName.isEmpty())
         {
-          fileName = internedSymbolString(sym->m_FileName);
+          fileName = internedSymbolString(info->m_FileName);
         }
 
-        int lineNo = sym->m_LineNumber;
+        int lineNo = info->m_LineNumber;
 
         LineData& data = lineStats[lineNo];
 
@@ -324,10 +335,17 @@ CacheSim::TraceData::ResolveResult CacheSim::TraceData::symbolResolveTask()
   {
     result.m_Symbols.push_back({ symbol.m_Rip });
     SerializedSymbol& out_sym = result.m_Symbols.last();
-    out_sym.m_SymbolName = intern_qstring(symbol.m_SymbolName);
-    out_sym.m_FileName = intern_qstring(symbol.m_FileName);
-    out_sym.m_LineNumber = symbol.m_LineNumber;
-    out_sym.m_Displacement = symbol.m_Displacement;
+
+	out_sym.m_Symbol.m_Name = intern_qstring(symbol.m_Symbol.m_Name);
+	out_sym.m_Symbol.m_FileName = intern_qstring(symbol.m_Symbol.m_FileName);
+	out_sym.m_Symbol.m_LineNumber = symbol.m_Symbol.m_LineNumber;
+	out_sym.m_Symbol.m_Displacement = symbol.m_Symbol.m_Displacement;
+
+	out_sym.m_InlinedSymbol.m_Name = intern_qstring(symbol.m_InlinedSymbol.m_Name);
+	out_sym.m_InlinedSymbol.m_FileName = intern_qstring(symbol.m_InlinedSymbol.m_FileName);
+	out_sym.m_InlinedSymbol.m_LineNumber = symbol.m_InlinedSymbol.m_LineNumber;
+	out_sym.m_InlinedSymbol.m_Displacement = symbol.m_InlinedSymbol.m_Displacement;
+
     out_sym.m_ModuleIndex = symbol.m_ModuleIndex;
   }
 

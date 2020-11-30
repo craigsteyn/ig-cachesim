@@ -203,19 +203,19 @@ QVariant CacheSim::TreeModel::headerData(int section, Qt::Orientation orientatio
   return QVariant();
 }
 
-void CacheSim::TreeModel::setTraceData(const TraceData* traceData, QString rootSymbol)
+void CacheSim::TreeModel::setTraceData(const TraceData* traceData, QString rootSymbol, bool useInline)
 {
   beginResetModel();
 
   m_Allocator->reset();
   m_RootNode = nullptr;
 
-  m_RootNode = createTree(traceData, rootSymbol);
+  m_RootNode = createTree(traceData, rootSymbol, useInline);
 
   endResetModel();
 }
 
-CacheSim::TreeModel::Node* CacheSim::TreeModel::createTree(const TraceData* traceData, QString rootSymbol)
+CacheSim::TreeModel::Node* CacheSim::TreeModel::createTree(const TraceData* traceData, QString rootSymbol, bool useInline)
 {
   const SerializedNode* nodes = traceData->header()->GetStats();
   const uint32_t nodeCount = traceData->header()->GetStatCount();
@@ -235,7 +235,7 @@ CacheSim::TreeModel::Node* CacheSim::TreeModel::createTree(const TraceData* trac
     // If we're trying to limit the tree to a particular root symbol, do that.
     if (!rootSymbol.isEmpty())
     {
-      if (rootSymbol != traceData->symbolNameForAddress(node.m_Rip))
+      if (rootSymbol != traceData->symbolNameForAddress(node.m_Rip, false) && rootSymbol != traceData->symbolNameForAddress(node.m_Rip, true))
       {
         continue;
       }
@@ -264,7 +264,7 @@ CacheSim::TreeModel::Node* CacheSim::TreeModel::createTree(const TraceData* trac
 
       if (sym)
       {
-        symbolName = traceData->internedSymbolString(sym->m_SymbolName);
+        symbolName = traceData->internedSymbolString(useInline ? sym->m_InlinedSymbol.m_Name : sym->m_Symbol.m_Name);
       }
       else
       {
@@ -276,7 +276,7 @@ CacheSim::TreeModel::Node* CacheSim::TreeModel::createTree(const TraceData* trac
 
       if (isNew && sym)
       {
-        branch->m_FileName = traceData->internedSymbolString(sym->m_FileName);
+        branch->m_FileName = traceData->internedSymbolString(useInline ? sym->m_InlinedSymbol.m_FileName : sym->m_Symbol.m_FileName);
       }
 
       for (int k = 0; k < CacheSim::kAccessResultCount; ++k)

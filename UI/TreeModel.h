@@ -64,11 +64,11 @@ namespace CacheSim
     QVariant headerData(int section, Qt::Orientation orientation, int role /*= Qt::DisplayRole*/) const override;
 
   public:
-    void setTraceData(const TraceData* traceData, QString rootSymbol = QString::null);
+    void setTraceData(const TraceData* traceData, QString rootSymbol = QString::null, bool useInline = false);
 
   private:
     class Node;
-    Node* createTree(const TraceData* traceData, QString rootSymbol);
+    Node* createTree(const TraceData* traceData, QString rootSymbol, bool useInline);
 
 
   private:

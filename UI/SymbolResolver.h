@@ -21,11 +21,17 @@ namespace CacheSim
   struct ResolvedSymbol
   {
     uintptr_t   m_Rip;
-    QString     m_FileName;
-    QString     m_SymbolName;
     uint32_t    m_ModuleIndex;
-    uint32_t    m_LineNumber;
-    uint32_t    m_Displacement;
+
+	struct SymbolInfo {
+		QString     m_Name;
+		QString     m_FileName;
+		uint32_t    m_LineNumber;
+		uint32_t    m_Displacement;
+	};
+
+	SymbolInfo m_Symbol;
+	SymbolInfo m_InlinedSymbol;
   };
 
   using SymbolResolveProgressCallbackType = std::function<void(int, int)>;

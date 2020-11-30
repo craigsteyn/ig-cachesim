@@ -19,7 +19,8 @@ namespace CacheSim
     ~FlatProfileView();
 
   private:
-    Q_SLOT void filterTextEdited();
+	  Q_SLOT void filterTextEdited();
+	  Q_SLOT void inlineToggle();
 
   private:
     const TraceData* m_TraceData;

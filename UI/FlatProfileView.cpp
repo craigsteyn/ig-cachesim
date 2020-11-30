@@ -64,6 +64,7 @@ CacheSim::FlatProfileView::FlatProfileView(const TraceData* traceData, QWidget* 
   verticalHeader->setDefaultSectionSize(tableView->viewport()->fontMetrics().height() * 1.25);
 
   connect(ui->m_FlatFilter, &QLineEdit::textChanged, this, &FlatProfileView::filterTextEdited);
+  connect(ui->m_ToggleButton, &QCheckBox::stateChanged, this, &FlatProfileView::inlineToggle);
 }
 
 CacheSim::FlatProfileView::~FlatProfileView()
@@ -74,6 +75,11 @@ CacheSim::FlatProfileView::~FlatProfileView()
 void CacheSim::FlatProfileView::filterTextEdited()
 {
   m_FlatProxy->setFilterFixedString(ui->m_FlatFilter->text());
+}
+
+void CacheSim::FlatProfileView::inlineToggle() {
+	m_Model->toggleInlineData();
+	m_FlatProxy->invalidate();
 }
 
 #include "aux_FlatProfileView.moc"
