@@ -33,7 +33,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 add_subdirectory(udis86)
 add_subdirectory(CacheSim)
-add_subdirectory(UI)
-add_subdirectory(UnitTest)
+#add_subdirectory(UI)
+#add_subdirectory(UnitTest)
 
 add_subdirectory(Examples)

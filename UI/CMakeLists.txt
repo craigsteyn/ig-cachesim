@@ -23,6 +23,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+set(Qt5_DIR "C:/Qt/Qt5.9.1/5.9.1/msvc2017_64/lib/cmake/Qt5" CACHE PATH "Initial cache" FORCE)
+
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
 set(moc_inputs
@@ -88,6 +90,7 @@ add_executable(CacheSimUI WIN32
 )
 
 if (WIN32)
+
   target_compile_definitions(CacheSimUI
     PRIVATE "IG_CACHESIM_API=__declspec(dllimport)" "NOMINMAX" "WIN32_LEAN_AND_MEAN")
 
@@ -95,7 +98,8 @@ if (WIN32)
     PRIVATE "/W4" "/wd4127" "/wd4458" "/wd4200" "/wd4718")
 
   target_link_libraries(CacheSimUI
-    PRIVATE Qt5::Widgets "dbghelp")
+    PRIVATE Qt5::Widgets "dbghelp" "diaguids" "WindowsApp")
+
 else (WIN32)
   target_link_libraries(CacheSimUI
     PRIVATE Qt5::Widgets)
@@ -104,7 +108,9 @@ else (WIN32)
 endif (WIN32)
 
 target_include_directories(CacheSimUI
-  PRIVATE "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
+  PRIVATE "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}" "C:/Program Files (x86)/Microsoft Visual Studio/2017/Enterprise/DIA SDK/include")
 
+target_link_directories(CacheSimUI PRIVATE "C:/Program Files (x86)/Microsoft Visual Studio/2017/Enterprise/DIA SDK/lib/amd64/")
 
 set_target_properties(CacheSimUI PROPERTIES FOLDER "UI")
+
