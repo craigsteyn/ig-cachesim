@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CacheSim.h"
 
+#include <atomic>
 #include <utility> // for std::swap
 
 namespace CacheSim
@@ -66,10 +67,10 @@ namespace CacheSim
     static constexpr size_t  kLineSize     = 64;   ///< We're on x86.
     static constexpr size_t  kSetSizeShift = 6;    ///< Log2(kLineSize)
     static constexpr size_t  kSetCount     = kCacheSizeBytes / kLineSize / kWays;
-    static constexpr size_t  kSetMask      = kSetCount - 1;
+    //static constexpr size_t  kSetMask      = kSetCount - 1;
 
     static_assert((kWays & (kWays - 1)) == 0,                         "Way count must be power of 2");
-    static_assert((kSetCount & (~size_t(kSetMask))) == kSetCount,     "Set count must be power of 2");
+   // static_assert((kSetCount & (~size_t(kSetMask))) == kSetCount,     "Set count must be power of 2");
     static_assert(kSetCount * kLineSize * kWays == kCacheSizeBytes,   "Size must divide perfectly");
 
     void Init()
@@ -83,7 +84,7 @@ namespace CacheSim
     {
       uint64_t base = addr >> kSetSizeShift;
 
-      const uint32_t line_index = base & kSetMask;
+      const uint32_t line_index = base % kSetCount;
 
       SetData<kWays>* set = &m_Sets[line_index];
 
@@ -118,7 +119,7 @@ namespace CacheSim
     {
       uint64_t base = addr >> kSetSizeShift;
 
-      const uint32_t line_index = base & kSetMask;
+      const uint32_t line_index = base % kSetCount;
 
       SetData<kWays>* set = &m_Sets[line_index];
 
@@ -187,6 +188,193 @@ namespace CacheSim
     }
 
     IG_CACHESIM_API AccessResult Access(int core_index, uintptr_t addr, size_t size, AccessMode mode);
+
+    std::atomic<int> core = { 0 };
+	  int GetNextCore() {
+		  int nextCore = core % (JaguarModule::kCoreCount);
+		  ++core;
+		  return nextCore;
+	  }
   };
 
+
+
+  ///Apple A9 Chip
+  /// L1 Data - 64kb, 64b / line, 4-way
+  /// L1 Instruction - 64k, 64b / line, 2-way
+  /// L2 - 3 MB, shared between all cores
+  /// L3 - 4 MB, victim cache shared between cpu + gpu
+  using AppleA9D1 = Cache<64 * 1024, 4>;
+  using AppleA9I1 = Cache<64 * 1024, 2>;
+  using AppleA9L2 = Cache<3 * 1024 * 1024, 16>;
+  using AppleA9L3 = Cache<4 * 1024 * 1024, 1>;
+
+  class AppleA9Module {
+  public:
+	  enum { kCoreCount = 2 };
+
+  private:
+	  AppleA9D1      m_CoreD1[kCoreCount];
+	  AppleA9I1      m_CoreI1[kCoreCount];
+	  AppleA9L2      m_Level2;
+	  AppleA9L3      m_Level3Victim;
+
+  public:
+	  void Init() {
+		  for (int i = 0; i < kCoreCount; ++i) {
+			  m_CoreD1[i].Init();
+			  m_CoreI1[i].Init();
+		  }
+		  m_Level2.Init();
+		  m_Level3Victim.Init();
+	  }
+
+	  IG_CACHESIM_API AccessResult Access(int core_index, uintptr_t addr, AccessMode mode);
+  };
+
+
+  ///Apple A11 Chip
+  /// L1 Data - 64kb, 64b / line, 4-way
+  /// L1 Instruction - 64k, 64b / line, 2-way
+  /// L2 - 8 MB per core
+  using AppleA11D1 = Cache<64 * 1024, 4>;
+  using AppleA11I1 = Cache<64 * 1024, 2>;
+  using AppleA11L2 = Cache<8 * 1024 * 1024, 16>;
+
+  class AppleA11Module {
+  public:
+	  enum { kCoreCount = 6 };
+
+  private:
+	  AppleA11D1      m_CoreD1[kCoreCount];
+	  AppleA11I1      m_CoreI1[kCoreCount];
+	  AppleA11L2      m_Level2[kCoreCount];
+
+  public:
+	  void Init() {
+		  for (int i = 0; i < kCoreCount; ++i) {
+			  m_CoreD1[i].Init();
+			  m_CoreI1[i].Init();
+			  m_Level2[i].Init();
+		  }
+	  }
+
+	  IG_CACHESIM_API AccessResult Access(int core_index, uintptr_t addr, AccessMode mode);
+  };
+
+
+  template<typename Module>
+  class AppleChipSim {
+  private:
+	  Module m_Module;
+
+  public:
+	  void Init() {
+		  m_Module.Init();
+	  }
+
+	  std::atomic<int> core = { 0 };
+	  int GetNextCore() {
+		  int nextCore = core % (Module::kCoreCount);
+		  ++core;
+		  return nextCore;
+	  }
+
+	  IG_CACHESIM_API AccessResult Access(int core_index, uintptr_t addr, size_t size, AccessMode mode) {
+		  AccessResult r = AccessResult::kD1Hit;
+
+		  // Handle straddling cache lines by looping.
+		  uint64_t line_base = addr & ~63ull;
+		  uint64_t line_end = (addr + size) & ~63ull;
+
+		  while (line_base <= line_end) {
+			  AccessResult r2 = m_Module.Access(core_index % (Module::kCoreCount), line_base, mode);
+			  if (r2 > r)
+				  r = r2;
+			  line_base += 64;
+		  }
+
+		  return r;
+	  }
+  };
+
+
+  ///Snapdragon 845 Chip
+  using Snapdragon845_A75_D1 = Cache<64 * 1024, 4>;
+  using Snapdragon845_A75_I1 = Cache<64 * 1024, 4>;
+  using Snapdragon845_A75_L2 = Cache<256 * 1024, 8>;
+
+  using Snapdragon845_A55_D1 = Cache<64 * 1024, 2>;
+  using Snapdragon845_A55_I1 = Cache<64 * 1024, 4>;
+  using Snapdragon845_A55_L2 = Cache<128 * 1024, 8>;
+
+  class Snapdragon845Module {
+  public:
+	  enum { kCoreCount = 8 };
+
+  private:
+	  Snapdragon845_A75_D1      m_A75_CoreD1[kCoreCount / 2];
+	  Snapdragon845_A75_I1      m_A75_CoreI1[kCoreCount / 2];
+	  Snapdragon845_A75_L2      m_A75_Level2[kCoreCount / 2];
+
+	  Snapdragon845_A55_D1      m_A55_CoreD1[kCoreCount / 2];
+	  Snapdragon845_A55_I1      m_A55_CoreI1[kCoreCount / 2];
+	  Snapdragon845_A55_L2      m_A55_Level2[kCoreCount / 2];
+
+  public:
+	  void Init() {
+		  for (int i = 0; i < kCoreCount / 2; ++i) {
+			  m_A75_CoreD1[i].Init();
+			  m_A75_CoreI1[i].Init();
+			  m_A75_Level2[i].Init();
+
+			  m_A55_CoreD1[i].Init();
+			  m_A55_CoreI1[i].Init();
+			  m_A55_Level2[i].Init();
+		  }
+	  }
+
+	  IG_CACHESIM_API AccessResult Access(int core_index, uintptr_t addr, AccessMode mode);
+  };
+
+
+  template<typename Module>
+  class Snapdragon845ChipSim {
+  private:
+	  Module m_Module;
+
+  public:
+	  void Init() {
+		  m_Module.Init();
+	  }
+
+	  std::atomic<int> core = { 1 };
+	  int GetNextCore() {
+		  int nextCore = core % (Module::kCoreCount);
+		  if (nextCore == 0) {
+			  nextCore = 1;
+			  ++core;
+		  }
+		  ++core;
+
+		  return nextCore;
+	  }
+
+	  IG_CACHESIM_API AccessResult Access(int core_index, uintptr_t addr, size_t size, AccessMode mode) {
+		  AccessResult r = AccessResult::kD1Hit;
+
+		  // Handle straddling cache lines by looping.
+		  uint64_t line_base = addr & ~63ull;
+		  uint64_t line_end = (addr + size) & ~63ull;
+
+		  while (line_base <= line_end) {
+			  AccessResult r2 = m_Module.Access(core_index % (Module::kCoreCount), line_base, mode);
+			  if (r2 > r)
+				  r = r2;
+			  line_base += 64;
+		  }
+
+		  return r;
+	  }
+  };
 }

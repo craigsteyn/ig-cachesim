@@ -96,3 +96,125 @@ CacheSim::AccessResult CacheSim::JaguarCacheSim::Access(int core_index, uintptr_
 
   return r;
 }
+
+
+/// Apple A9 Access
+
+CacheSim::AccessResult CacheSim::AppleA9Module::Access(int core_index, uintptr_t addr, AccessMode mode) {
+	if (kWrite == mode) {
+		// Kick the line out of every other L1 and the other L2 package.
+		for (int i = 0; i < AppleA9Module::kCoreCount; ++i) {
+			if (i == core_index)
+				continue;
+
+			m_CoreD1[i].Invalidate(addr);
+			m_CoreI1[i].Invalidate(addr);
+		}
+	}
+
+	//Attempt to read from l1
+	if (kCodeRead == mode) {
+		if(m_CoreI1[core_index].Access(addr)) {
+			return kI1Hit;
+		}
+	}
+	else {
+		if(m_CoreD1[core_index].Access(addr)) {
+			return kD1Hit;
+		}
+	}
+
+	//We have missed on l1, try to fetch from l2
+	if(m_Level2.Access(addr)) {
+		return kL2Hit;
+	}
+
+	//We missed on l2, but we have a victim cache that might still have what we need
+	//@TODO
+	
+
+	if (kCodeRead == mode)
+		return kL2IMiss;
+	else
+		return kL2DMiss;
+}
+
+/// Apple A11 Access
+CacheSim::AccessResult CacheSim::AppleA11Module::Access(int core_index, uintptr_t addr, AccessMode mode) {
+	if (kWrite == mode) {
+		// Kick the line out of every other L1
+		for (int i = 0; i < AppleA11Module::kCoreCount; ++i) {
+			if (i == core_index)
+				continue;
+
+			m_CoreD1[i].Invalidate(addr);
+			m_CoreI1[i].Invalidate(addr);
+		}
+	}
+
+	//Attempt to read from l1
+	if (kCodeRead == mode) {
+		if (m_CoreI1[core_index].Access(addr)) {
+			return kI1Hit;
+		}
+	}
+	else {
+		if (m_CoreD1[core_index].Access(addr)) {
+			return kD1Hit;
+		}
+	}
+
+	//We have missed on l1, try to fetch from l2
+	if (m_Level2[core_index].Access(addr)) {
+		return kL2Hit;
+	}
+
+	if (kCodeRead == mode)
+		return kL2IMiss;
+	else
+		return kL2DMiss;
+}
+
+CacheSim::AccessResult CacheSim::Snapdragon845Module::Access(int core_index, uintptr_t addr, AccessMode mode) {
+	bool goodChip = core_index < 4;
+	int chip_core_index = goodChip ? core_index : (core_index - 4);
+
+	if (kWrite == mode) {
+		// Kick the line out of every other L1
+		for (int i = 0; i < Snapdragon845Module::kCoreCount / 2; ++i) {
+			if (i == core_index)
+				continue;
+
+			if(goodChip) {
+				m_A75_CoreD1[i].Invalidate(addr);
+				m_A75_CoreI1[i].Invalidate(addr);
+			}				   
+			else {
+				m_A55_CoreD1[i].Invalidate(addr);
+				m_A55_CoreI1[i].Invalidate(addr);
+			}
+		}
+	}
+
+	//Attempt to read from l1
+	if (kCodeRead == mode) {
+		if ((goodChip ? m_A75_CoreI1[chip_core_index].Access(addr) : m_A55_CoreI1[chip_core_index].Access(addr))) {
+			return kI1Hit;
+		}
+	}
+	else {
+		if ((goodChip ? m_A75_CoreD1[chip_core_index].Access(addr) : m_A55_CoreD1[chip_core_index].Access(addr))) {
+			return kD1Hit;
+		}
+	}
+
+	//We have missed on l1, try to fetch from l2
+	if ((goodChip ? m_A75_Level2[chip_core_index].Access(addr) : m_A55_Level2[chip_core_index].Access(addr))) {
+		return kL2Hit;
+	}
+
+	if (kCodeRead == mode)
+		return kL2IMiss;
+	else
+		return kL2DMiss;
+}

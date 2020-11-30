@@ -88,8 +88,14 @@ extern "C"
   /// A core id of -1 will disable recording the thread (e.g., upon thread completion)
   IG_CACHESIM_API void CacheSimSetThreadCoreMapping(uint64_t thread_id, int logical_core_id);
 
+  enum CPU_Type {
+    //CPU_Jaguar, // Doesnt seems to work at the moment
+    CPU_AppleA9,
+    CPU_AppleA11,
+    CPU_Snapdragon845
+  };
   /// Start recording a capture, buffering it to memory.
-  IG_CACHESIM_API bool CacheSimStartCapture();
+  IG_CACHESIM_API bool CacheSimStartCapture(int cpu_type);
 
   /// Stop recording and optionally save the capture to disk.
   IG_CACHESIM_API void CacheSimEndCapture(bool save);
@@ -162,9 +168,9 @@ namespace CacheSim
     }
 
 
-    inline bool Start()
+    inline bool Start(int cpu_type)
     {
-      return m_StartCaptureFn();
+      return m_StartCaptureFn(cpu_type);
     }
 
     inline void End()

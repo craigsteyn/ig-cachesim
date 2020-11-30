@@ -63,13 +63,20 @@ namespace CacheSim
   {
     uintptr_t   m_Rip;
     uint8_t     m_Pad[4];
-    uint32_t    m_FileName;
-    uint32_t    m_SymbolName;
+
     uint32_t    m_ModuleIndex;
-    uint32_t    m_LineNumber;
-    uint32_t    m_Displacement;
+
+	struct SymbolInfo {
+		uint32_t    m_Name;
+		uint32_t    m_FileName;
+		uint32_t    m_LineNumber;
+		uint32_t    m_Displacement;
+	};
+
+	SymbolInfo m_Symbol;
+	SymbolInfo m_InlinedSymbol;
   };
-  static_assert(sizeof(SerializedSymbol) == 32, "bump version if you're changing this");
+  static_assert(sizeof(SerializedSymbol) == 48, "bump version if you're changing this");
 
   static constexpr uint32_t kCurrentVersion = 0x2;
 

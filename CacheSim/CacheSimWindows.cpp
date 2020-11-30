@@ -283,7 +283,7 @@ RtlpCallVectoredHandlers. This symbol is not exported, so it's not possible to g
 with a call to GetProcAddress(). If you have a version of NTDLL not in this list and need to
 use CacheSim, update the table in this function per the comment below.
 */
-bool CacheSimStartCapture()
+bool CacheSimStartCapture(int cpu_type)
 {
   using namespace CacheSim;
   if (g_TraceEnabled)
@@ -299,7 +299,7 @@ bool CacheSimStartCapture()
   }
 
   // Reset.
-  g_Cache.Init();
+  InitCache(cpu_type);
 
   HANDLE thread_handles[ARRAY_SIZE(s_CoreMappings)];
   int thread_count = 0;

@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
   // If a thread is not mapped, it will not be simulated.
   cachesim.SetThreadCoreMapping(cachesim.GetCurrentThreadId(), 0);
 
-  cachesim.Start();
+  cachesim.Start(CPU_AppleA11);
 
   printf("Hello, world (with cache simulation)!\n");
 

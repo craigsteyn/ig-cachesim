@@ -233,7 +233,7 @@ static void ContinueProcess(const pid_t pid)
   return;
 }
 
-bool CacheSimStartCapture()
+bool CacheSimStartCapture(int cpu_type)
 {
   using namespace CacheSim;
   if (g_TraceEnabled)
@@ -242,7 +242,7 @@ bool CacheSimStartCapture()
   }
 
   // Reset.
-  g_Cache.Init();
+  InitCache(cpu_type);
 
   pid_t child = fork();
   if (child != 0)
